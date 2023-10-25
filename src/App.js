@@ -4,6 +4,7 @@ import Webcam from 'react-webcam';
 import { saveAs } from 'file-saver';
 import axios from 'axios';
 import RecordRTC from "recordrtc"
+import Chart from 'chart.js/auto';
 
 function App() {
   const [recorder, setRecorder] = useState(null);
@@ -17,6 +18,10 @@ function App() {
   const coutdownIntervalId = useRef(null);
   const [heartRate, setHeartRate] = useState(null);
   const [rppgSignals, setRPPGSignals] = useState(null);
+  const [clickedButton, setClickedButton] = useState(null);
+  const [heartRateReceived, setHeartRateReceived] = useState(false);
+
+
 
   useEffect(() => {
     return () => {
@@ -109,45 +114,127 @@ function App() {
         console.log('Response from server:', response.data);
         setHeartRate(response.data.heartRate);
         setRPPGSignals(response.data.rppgSignals);
+        setHeartRateReceived(true);
       }
     } catch (error) {
       console.error('Error sending video to the backend:', error);
     }
   };
 
+  //plotting chart
+  const rppgDataRef = useRef(null);
+
+  useEffect(() => {
+    if (rppgDataRef.current) {
+      rppgDataRef.current.destroy();
+    }
+    // Create a chart once when the component mounts
+    rppgDataRef.current = new Chart('rppg-chart', {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'RPPG Signal',
+            data: [],
+            borderColor: 'rgb(75, 192, 192)',
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }, []);
+
+  useEffect(() => {
+    if (rppgSignals) {
+      // Update the RPPG data in the chart when new data is received
+      rppgDataRef.current.data.labels = Array.from(Array(rppgSignals.length).keys());
+      rppgDataRef.current.data.datasets[0].data = rppgSignals;
+      rppgDataRef.current.update();
+    }
+  }, [rppgSignals]);
+
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '5px' }}>
       <div style={{ display: 'flex', justifyContent: 'center', flexDirection: 'row', margin: '5px' }}>
         <button
-          style={{ backgroundColor: '#0073e6', color: 'white', padding: '10px', marginRight: '5px' }}
-          onClick={startRecording}
+          style={{
+            backgroundColor: clickedButton === 'startRecording' ? '#0a58ca' : '#0073e6',
+            color: 'white',
+            padding: '10px',
+            marginRight: '5px',
+            transition: 'background-color 0.3s',
+          }}
+          onClick={() => {
+            startRecording();
+            setClickedButton('startRecording');
+            setTimeout(() => setClickedButton(null), 300);
+          }}
         >
           <FaCamera /> Start Recording
         </button>
         <button
-          style={{ backgroundColor: '#0073e6', color: 'white', padding: '10px', marginRight: '5px' }}
-          onClick={stopRecording}
+          style={{
+            backgroundColor: clickedButton === 'stopRecording' ? '#0a58ca' : '#0073e6',
+            color: 'white',
+            padding: '10px',
+            marginRight: '5px',
+            transition: 'background-color 0.3s',
+          }}
+          onClick={() => {
+            stopRecording();
+            setClickedButton('stopRecording');
+            setTimeout(() => setClickedButton(null), 300);
+          }}
           disabled={!recorder}
         >
           <FaVideoSlash /> Stop Recording
         </button>
         <button
-          style={{ backgroundColor: '#0073e6', color: 'white', padding: '10px', marginRight: '5px' }}
-          onClick={downloadVideo}
+          style={{
+            backgroundColor: clickedButton === 'downloadVideo' ? '#0a58ca' : '#0073e6',
+            color: 'white',
+            padding: '10px',
+            transition: 'background-color 0.3s',
+          }}
+          onClick={() => {
+            downloadVideo();
+            setClickedButton('downloadVideo');
+            setTimeout(() => setClickedButton(null), 300);
+          }}
           disabled={!videoBlob}
         >
           <FaDownload /> Download Video
         </button>
         <button
-          style={{ backgroundColor: '#0073e6', color: 'white', padding: '10px' }}
-          onClick={sendVideoToBackend}
+          style={{
+            backgroundColor: clickedButton === 'sendVideoToBackend' ? '#0a58ca' : '#0073e6',
+            color: 'white',
+            padding: '10px',
+            transition: 'background-color 0.3s',
+            marginLeft: '10px'
+          }}
+          onClick={() => {
+            sendVideoToBackend();
+            setClickedButton('sendVideoToBackend');
+            setTimeout(() => setClickedButton(null), 300);
+          }}
           disabled={!videoBlob}
         >
-          <FaChevronRight /> Send Video
+          <FaChevronRight /> Get rppg signals
         </button>
+
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '5px' }}>
-        <div style={{ background: 'white', borderRadius: '10px', padding: '5px', fontSize: '20px', fontWeight: 'bold', marginRight: '5px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', margin: '5px' }}>
+        <div style={{ background: 'white', borderRadius: '10px', padding: '5px', fontSize: '20px', fontWeight: 'bold', marginRight: '5px', marginTop: '10px' }}>
           Remaining time: {countDown} seconds
         </div>
         <div style={{ width: '500px', height: '500px' }}>
@@ -164,8 +251,14 @@ function App() {
             <video width={500} height={500} src={window.URL.createObjectURL(videoBlob)} controls />
           )}
         </div>
+        {heartRateReceived && (
+          <div style={{ marginTop: '10px' }}>
+            Heart Rate: {heartRate}
+          </div>
+        )}
+        <canvas id="rppg-chart" width="500" height="200"></canvas>
       </div>
-    </div>
+    </div >
   );
 }
 
