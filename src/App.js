@@ -20,6 +20,7 @@ function App() {
   const [rppgSignals, setRPPGSignals] = useState(null);
   const [clickedButton, setClickedButton] = useState(null);
   const [heartRateReceived, setHeartRateReceived] = useState(false);
+  const [recordingInProgress, setRecordingInProgress] = useState(false);
 
 
 
@@ -36,6 +37,12 @@ function App() {
   }, []);
 
   const startRecording = async () => {
+    if (recordingInProgress) {
+      return;
+    }
+
+    setRecordingInProgress(true);
+
     navigator.mediaDevices.getUserMedia({
       video: true,
       audio: false
@@ -139,6 +146,7 @@ function App() {
             data: [],
             borderColor: 'rgb(75, 192, 192)',
             fill: false,
+            lineTension: 0.4, //curving the graph
           },
         ],
       },
@@ -234,9 +242,16 @@ function App() {
 
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', margin: '5px' }}>
-        <div style={{ background: 'white', borderRadius: '10px', padding: '5px', fontSize: '20px', fontWeight: 'bold', marginRight: '5px', marginTop: '10px' }}>
-          Remaining time: {countDown} seconds
-        </div>
+        {
+          countDown >= 0 ?
+            <div style={{ background: 'white', borderRadius: '10px', padding: '5px', fontSize: '20px', fontWeight: 'bold', marginRight: '5px', marginTop: '10px' }}>
+              Remaining time: {countDown} seconds
+            </div> :
+            <div style={{ background: 'white', borderRadius: '10px', padding: '5px', fontSize: '20px', fontWeight: 'bold', marginRight: '5px', marginTop: '10px' }}>
+              Remaining time: 0 seconds
+            </div>
+        }
+
         <div style={{ width: '500px', height: '500px' }}>
           {!videoBlob ? (
             <Webcam
@@ -256,7 +271,7 @@ function App() {
             Heart Rate: {heartRate}
           </div>
         )}
-        <canvas id="rppg-chart" width="500" height="200"></canvas>
+        <canvas id="rppg-chart" width="800" height="400"></canvas>
       </div>
     </div >
   );
